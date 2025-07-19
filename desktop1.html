@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CINET - Terminal de Segurança</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="scanline"></div>
+    
+    <div class="container">
+        <div class="terminal-header">
+            <div class="logo">
+                <span class="glitch-text" data-text="CINET">CINET</span> // TERMINAL DE SEGURANÇA
+            </div>
+            <div class="status">
+                <div class="status-item">
+                    <div class="status-dot"></div>
+                    <span>NÍVEL 4</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot"></div>
+                    <span>CRIPTO ATIVO</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot"></div>
+                    <span>REDE: CINET-01</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="terminal">
+            <div class="screen">
+                <div class="output">
+                    > INICIANDO SISTEMA...<br>
+                    > CARREGANDO CINET.EXE...<br>
+                    > VERIFICANDO MÓDULOS DE SEGURANÇA...<br><br>
+                    <span class="success">SISTEMA CARREGADO!</span>
+                </div>
+                <div class="output">
+                    <pre style="color: #0f0; text-align: center; font-family: 'Courier New', monospace;">
+ ██████╗██╗███╗   ██╗███████╗████████╗
+██╔════╝██║████╗  ██║██╔════╝╚══██╔══╝
+██║     ██║██╔██╗ ██║█████╗     ██║   
+██║     ██║██║╚██╗██║██╔══╝     ██║   
+╚██████╗██║██║ ╚████║███████╗   ██║   
+ ╚═════╝╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝
+                    </pre>
+                </div>
+                <div class="output">
+                    > ACESSO RESTRITO - NÍVEL 4 REQUERIDO<br>
+                    > POR FAVOR, INSIRA SUA SENHA DE ACESSO.
+                </div>
+                <div class="password-field">
+                    <input type="password" id="password" class="password-input" placeholder="Senha" autofocus>
+                    <button id="login-btn" class="submit-btn">ACESSAR</button>
+                </div>
+                <div id="login-message" class="output"></div>
+            </div>
+        </div>
+        
+        <div class="terminal-footer">
+            > CINET v3.7.2 // SISTEMA DE SEGURANÇA RESTRITO // TODAS AS AÇÕES MONITORADAS
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const passwordInput = document.getElementById('password');
+            const loginBtn = document.getElementById('login-btn');
+            const loginMessage = document.getElementById('login-message');
+            
+            // Senha correta
+            const correctPassword = "1234";
+            
+            // Função para lidar com o login
+            function handleLogin() {
+                const password = passwordInput.value.trim();
+                
+                if (password === correctPassword) {
+                    loginMessage.innerHTML = '<span class="success">> ACESSO PERMITIDO. INICIALIZANDO SISTEMA...</span>';
+                    setTimeout(() => {
+                        window.location.href = 'desktop2.html';
+                    }, 1500);
+                } else {
+                    loginMessage.innerHTML = '<span class="error">> ERRO: SENHA INCORRETA. TENTE NOVAMENTE.</span>';
+                    passwordInput.value = '';
+                }
+            }
+            
+            // Eventos
+            loginBtn.addEventListener('click', handleLogin);
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleLogin();
+            });
+        });
+    </script>
+</body>
+</html>
