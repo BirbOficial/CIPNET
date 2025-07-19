@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIPNET - Terminal de Segurança</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        
+        :root {
+            --terminal-bg: #0a0a12;
+            --terminal-text: #0aff0a;
+            --terminal-border: #00c8ff;
+            --highlight: #ffcc00;
+            --error: #ff5555;
+            --selection-bg: rgba(0, 200, 255, 0.2);
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: var(--terminal-text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(10, 255, 10, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 80% 70%, rgba(0, 200, 255, 0.05) 0%, transparent 20%);
+            z-index: -1;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            position: relative;
+        }
+        
+        .terminal-header {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--terminal-border);
+            border-bottom: none;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .logo i {
+            color: var(--highlight);
+        }
+        
+        .status {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #0aff0a;
+        }
+        
+        .terminal {
+            background: var(--terminal-bg);
+            border: 2px solid var(--terminal-border);
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            height: 70vh;
+            min-height: 500px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .screen {
+            padding: 20px;
+            height: 100%;
+            overflow-y: auto;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .screen.active {
+            display: flex;
+        }
+        
+        .prompt {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+        
+        .prompt-text {
+            color: var(--highlight);
+            font-weight: bold;
+        }
+        
+        .cmd-line {
+            background: transparent;
+            border: none;
+            color: var(--terminal-text);
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            width: calc(100% - 100px);
+            outline: none;
+            caret-color: var(--terminal-text);
+        }
+        
+        .output {
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        
+        .menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+        
+        .menu-item:hover {
+            background: var(--selection-bg);
+        }
+        
+        .menu-item.selected {
+            background: var(--selection-bg);
+            border-left: 3px solid var(--highlight);
+        }
+        
+        .menu-item i {
+            width: 20px;
+            text-align: center;
+            color: var(--highlight);
+        }
+        
+        .puzzle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .puzzle-title {
+            font-size: 1.2rem;
+            color: var(--highlight);
+            margin-bottom: 10px;
+        }
+        
+        .labirinto {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            grid-template-rows: repeat(10, 30px);
+            gap: 2px;
+            margin: 20px auto;
+        }
+        
+        .cell {
+            width: 30px;
+            height: 30px;
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .cell.path {
+            background: #0a3d62;
+        }
+        
+        .cell.start {
+            background: #0aff0a;
+        }
+        
+        .cell.end {
+            background: var(--highlight);
+        }
+        
+        .cell.player {
+            background: #00c8ff;
+        }
+        
+        .key-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin: 20px auto;
+            max-width: 500px;
+        }
+        
+        .key-btn {
+            padding: 12px;
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            color: var(--terminal-text);
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .key-btn.active {
+            background: var(--highlight);
+            color: #000;
+            transform: translateY(-3px);
+            box-shadow: 0 3px 10px rgba(255, 204, 0, 0.3);
+        }
+        
+        .key-combination {
+            margin: 20px 0;
+            font-size: 1.2rem;
+            color: var(--highlight);
+        }
+        
+        .result-code {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border: 1px solid var(--highlight);
+            border-radius: 4px;
+            font-size: 1.3rem;
+            letter-spacing: 2px;
+            text-align: center;
+            margin: 20px auto;
+            max-width: 400px;
+            animation: pulse 2s infinite;
+        }
+        
+        .keyboard-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 0.9rem;
+            border: 1px solid var(--terminal-border);
+        }
+        
+        .key {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--terminal-border);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .success {
+            color: #0aff0a;
+        }
+        
+        .error {
+            color: var(--error);
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: var(--terminal-text);
+            vertical-align: middle;
+            margin-left: 3px;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 204, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0); }
+        }
+        
+        .password-field {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .password-input {
+            background: transparent;
+            border: 1px solid var(--terminal-border);
+            color: var(--terminal-text);
+            padding: 8px 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            width: 200px;
+            outline: none;
+        }
+        
+        .submit-btn {
+            background: var(--terminal-border);
+            color: #000;
+            border: none;
+            padding: 8px 15px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+        
+        .submit-btn:hover {
+            background: var(--highlight);
+        }
+        
+        .files-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .file-item {
+            background: rgba(26, 26, 46, 0.7);
+            border: 1px solid #2a2a4a;
+            padding: 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .file-item:hover {
+            border-color: var(--terminal-border);
+            transform: translateY(-3px);
+        }
+        
+        .file-item i {
+            color: var(--highlight);
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+        
+        .file-item h4 {
+            margin-bottom: 5px;
+            color: var(--highlight);
+        }
+        
+        .complexity-input {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 300px;
+        }
+        
+        .complexity-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        .complexity-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--highlight);
+            cursor: pointer;
+        }
+        
+        .complexity-value {
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--highlight);
+        }
+        
+        .restart-message {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            border: 1px solid var(--terminal-border);
+            animation: pulse 2s infinite;
+        }
+        
+        @media (max-width: 768px) {
+            .terminal {
+                height: 80vh;
+            }
+            
+            .labirinto {
+                grid-template-columns: repeat(10, 20px);
+                grid-template-rows: repeat(10, 20px);
+            }
+            
+            .cell {
+                width: 20px;
+                height: 20px;
+            }
+            
+            .key-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="terminal-header">
+            <div class="logo">
+                <i class="fas fa-terminal"></i>
+                CIPNET - TERMINAL DE SEGURANÇA
+            </div>
+            <div class="status">
+                <div class="status-item">
+                    <div class="status-dot"></div>
+                    <span>ONLINE</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot" style="background: #ffcc00;"></div>
+                    <span>NÍVEL 4</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot" style="background: #00c8ff;"></div>
+                    <span>CRIPTO ATIVO</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="terminal">
+            <!-- Desktop 1: Tela Inicial / Boot -->
+            <div id="desktop1" class="screen active">
+                <div class="output">
+                    CARREGANDO CIPNET.EXE.....<br>
+                    VERIFICANDO SISTEMA......<br>
+                    INICIALIZANDO MÓDULOS DE SEGURANÇA...<br><br>
+                    <span class="success">SISTEMA CARREGADO!</span>
+                </div>
+                <div class="ascii-logo">
+                    <pre style="color: var(--highlight); text-align: center;">
+  ██████╗ ██╗██████╗ ███╗   ██╗███████╗████████╗
+ ██╔════╝ ██║██╔══██╗████╗  ██║██╔════╝╚══██╔══╝
+ ██║  ███╗██║██████╔╝██╔██╗ ██║█████╗     ██║   
+ ██║   ██║██║██╔═══╝ ██║╚██╗██║██╔══╝     ██║   
+ ╚██████╔╝██║██║     ██║ ╚████║███████╗   ██║   
+  ╚═════╝ ╚═╝╚═╝     ╚═╝  ╚═══╝╚══════╝   ╚═╝   
+                    </pre>
+                </div>
+                <div class="output">
+                    POR FAVOR, INSIRA SUA SENHA DE ACESSO.
+                </div>
+                <div class="password-field">
+                    <input type="password" id="password" class="password-input" placeholder="Senha de acesso" autofocus>
+                    <button id="login-btn" class="submit-btn">ACESSAR</button>
+                </div>
+                <div id="login-message" class="output"></div>
+            </div>
+            
+            <!-- Desktop 2: Hub Principal de Navegação -->
+            <div id="desktop2" class="screen">
+                <div class="output">
+                    <span class="success">BEM VINDO, AGENTE 047!</span><br>
+                    DATA: 20/07/2025<br>
+                    HORA: 14:38:07<br><br>
+                    ESCOLHA A FUNÇÃO NECESSÁRIA:
+                </div>
+                <div class="menu">
+                    <div class="menu-item" data-target="desktop3">
+                        <i class="fas fa-lock-open"></i>
+                        <span>BRECHA DE SISTEMAS</span>
+                    </div>
+                    <div class="menu-item" data-target="desktop4">
+                        <i class="fas fa-microchip"></i>
+                        <span>DESENVOLVIMENTO TECNOLÓGICO</span>
+                    </div>
+                    <div class="menu-item" data-target="desktop5">
+                        <i class="fas fa-folder"></i>
+                        <span>ARQUIVOS</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Desktop 3: Seleção de Trajetória -->
+            <div id="desktop3" class="screen">
+                <div class="output">
+                    <span class="success">CARREGANDO SISTEMA DE SEGURANÇA...</span><br><br>
+                    SELECIONE TRAJETÓRIA:
+                </div>
+                <div class="menu">
+                    <div class="menu-item" data-target="desktop4">
+                        <i class="fas fa-copy"></i>
+                        <span>CLONAR CARTÃO DE ACESSO</span>
+                    </div>
+                    <div class="menu-item" data-target="desktop4">
+                        <i class="fas fa-server"></i>
+                        <span>ACESSAR SISTEMAS</span>
+                    </div>
+                    <div class="menu-item" data-target="desktop4">
+                        <i class="fas fa-ellipsis-h"></i>
+                        <span>OUTROS</span>
+                    </div>
+                </div>
+                <div class="output">
+                    <br>AVISO: Todas as ações são monitoradas e registradas.
+                </div>
+            </div>
+            
+            <!-- Desktop 4: Interface Visual / Puzzle -->
+            <div id="desktop4" class="screen">
+                <div class="output">
+                    <span class="success">MÓDULO DE AUTENTICAÇÃO</span><br>
+                    RESOLVA O DESAFIO PARA VALIDAR ACESSO
+                </div>
+                
+                <div class="puzzle-container">
+                    <div class="puzzle-title">DESAFIO: LABIRINTO DE SEGURANÇA</div>
+                    <div class="labirinto" id="maze"></div>
+                    <div class="output">
+                        Utilize as teclas de direção para navegar até o destino.
+                    </div>
+                </div>
+                
+                <div class="puzzle-container" id="key-puzzle" style="display: none;">
+                    <div class="puzzle-title">DESAFIO: COMBINAÇÃO DE TECLAS</div>
+                    <div class="key-combination" id="key-combination">Pressione: Shift + K + 7</div>
+                    <div class="key-grid" id="key-grid"></div>
+                    <div class="output" id="key-result"></div>
+                </div>
+                
+                <div id="puzzle-result" style="display: none;">
+                    <div class="result-code">
+                        Puzzle resolvido com sucesso.<br>
+                        Código: <span id="puzzle-code">X7F2-Q9L8</span>
+                    </div>
+                    <div class="output">
+                        Pressione ENTER para continuar...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Desktop 5: Listagem de Arquivos -->
+            <div id="desktop5" class="screen">
+                <div class="output">
+                    <span class="success">CARREGANDO SISTEMA DE ARQUIVOS...</span><br><br>
+                    SELECIONE CATEGORIA:
+                </div>
+                <div class="menu">
+                    <div class="menu-item" data-target="desktop7">
+                        <i class="fas fa-file-code"></i>
+                        <span>ARQUIVOS TÉCNICOS</span>
+                    </div>
+                    <div class="menu-item" data-target="desktop7">
+                        <i class="fas fa-file-alt"></i>
+                        <span>RELATÓRIOS INTERNOS</span>
+                    </div>
+                    <div class="menu-item" data-target="desktop7">
+                        <i class="fas fa-file-medical"></i>
+                        <span>PROTOCOLOS DE CAMPO</span>
+                    </div>
+                </div>
+                
+                <div id="file-content" style="display: none; margin-top: 20px;">
+                    <div class="output">
+                        <span class="success">CONTEÚDO DO ARQUIVO:</span>
+                    </div>
+                    <div class="output" style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 4px;">
+                        [NÍVEL DE ACESSO 4 REQUERIDO]<br><br>
+                        Projeto: Fênix<br>
+                        Status: Ativo<br>
+                        Descrição: Desenvolvimento de tecnologia de camuletação avançada baseada em metamateriais.<br><br>
+                        Último relatório: 15/07/2025<br>
+                        Progresso: Fase 3 de testes<br>
+                        Equipe: Dr. Almeida (líder), Eng. Silva, Tec. Rodrigues<br><br>
+                        Notas: Os resultados preliminares excederam as expectativas. O protótipo P-03 demonstrou 92% de eficácia em testes de campo.
+                    </div>
+                    <div class="output">
+                        Pressione ENTER para retornar...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Desktop 6: Escolha Técnica / Entrada Numérica -->
+            <div id="desktop6" class="screen">
+                <div class="output">
+                    <span class="success">MÓDULO DE SIMULAÇÃO TÉCNICA</span><br><br>
+                    ESCOLHA CATEGORIA:
+                </div>
+                <div class="menu">
+                    <div class="menu-item" data-category="biologia">
+                        <i class="fas fa-dna"></i>
+                        <span>BIOLOGIA</span>
+                    </div>
+                    <div class="menu-item" data-category="tecnologia">
+                        <i class="fas fa-microchip"></i>
+                        <span>TECNOLOGIA</span>
+                    </div>
+                    <div class="menu-item" data-category="armamentos">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>ARMAMENTOS</span>
+                    </div>
+                    <div class="menu-item" data-category="protecao">
+                        <i class="fas fa-user-shield"></i>
+                        <span>PROTEÇÃO</span>
+                    </div>
+                    <div class="menu-item" data-category="anomalias">
+                        <i class="fas fa-radiation"></i>
+                        <span>ANOMALIAS</span>
+                    </div>
+                </div>
+                
+                <div id="complexity-section" style="display: none; margin-top: 30px;">
+                    <div class="output">
+                        SELECIONE NIVEL DE COMPLEXIDADE:
+                    </div>
+                    <div class="complexity-input">
+                        <input type="range" min="1" max="10" value="5" class="complexity-slider" id="complexity-slider">
+                        <div class="complexity-value">
+                            NÍVEL: <span id="complexity-value">5</span>
+                        </div>
+                        <button id="run-simulation" class="submit-btn">EXECUTAR SIMULAÇÃO</button>
+                    </div>
+                </div>
+                
+                <div id="simulation-result" style="display: none; margin-top: 20px;">
+                    <div class="result-code">
+                        Compilação bem-sucedida.<br>
+                        Código de verificação: <span id="verification-code">V3C9-LP02</span>
+                    </div>
+                    <div class="output">
+                        Pressione ENTER para continuar...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Desktop 7: Resultado / Tela de Conteúdo -->
+            <div id="desktop7" class="screen">
+                <div class="output">
+                    <span class="success">RESULTADO DA OPERAÇÃO</span><br><br>
+                </div>
+                
+                <div id="operation-result">
+                    <div class="result-code">
+                        Operação concluída com sucesso<br>
+                        Código de acesso: <span id="result-code">B8R2-F4T9</span>
+                    </div>
+                    <div class="output" style="margin-top: 30px;">
+                        <pre>
+Relatório de Atividade
+----------------------
+Data: 20/07/2025
+Hora: 14:45:22
+Agente: 047
+Sistema: CIPNET Terminal
+Operação: Acesso a Arquivos Técnicos
+Status: Concluído
+Duração: 2m 18s
+Código de Verificação: X7F2-Q9L8
+
+Detalhes:
+- Arquivo técnico acessado: Projeto Fênix
+- Nível de acesso: 4
+- Registro de auditoria criado
+                        </pre>
+                    </div>
+                </div>
+                
+                <div class="restart-message">
+                    PRESSIONE QUALQUER TECLA PARA REINICIAR O SISTEMA
+                </div>
+            </div>
+        </div>
+        
+        <div class="keyboard-hint">
+            <div class="key"><i class="fas fa-arrow-up"></i></div>
+            <div class="key"><i class="fas fa-arrow-down"></i></div>
+            <div class="key"><i class="fas fa-arrow-left"></i></div>
+            <div class="key"><i class="fas fa-arrow-right"></i></div>
+            <span>Para navegação</span>
+            <div class="key">ENTER</div>
+            <span>Para seleção</span>
+        </div>
+    </div>
+    
+    <script>
+        // Estado do sistema
+        const state = {
+            currentScreen: 'desktop1',
+            selectedItem: 0,
+            password: 'CIPNET',
+            mazeSolved: false,
+            keyCombination: ['Shift', 'K', '7'],
+            pressedKeys: [],
+            complexity: 5,
+            category: null
+        };
+        
+        // Elementos DOM
+        const screens = document.querySelectorAll('.screen');
+        const menuItems = document.querySelectorAll('.menu-item');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('login-btn');
+        const loginMessage = document.getElementById('login-message');
+        const maze = document.getElementById('maze');
+        const keyGrid = document.getElementById('key-grid');
+        const keyCombination = document.getElementById('key-combination');
+        const keyResult = document.getElementById('key-result');
+        const puzzleResult = document.getElementById('puzzle-result');
+        const complexitySlider = document.getElementById('complexity-slider');
+        const complexityValue = document.getElementById('complexity-value');
+        const runSimulation = document.getElementById('run-simulation');
+        const simulationResult = document.getElementById('simulation-result');
+        const fileContent = document.getElementById('file-content');
+        
+        // Inicialização do sistema
+        document.addEventListener('DOMContentLoaded', () => {
+            // Configurar labirinto
+            createMaze();
+            
+            // Configurar grid de teclas
+            createKeyGrid();
+            
+            // Evento de login
+            loginBtn.addEventListener('click', handleLogin);
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleLogin();
+            });
+            
+            // Evento de slider de complexidade
+            complexitySlider.addEventListener('input', () => {
+                complexityValue.textContent = complexitySlider.value;
+                state.complexity = parseInt(complexitySlider.value);
+            });
+            
+            // Evento de execução de simulação
+            runSimulation.addEventListener('click', runTechSimulation);
+            
+            // Selecionar primeiro item em cada tela ao entrar
+            document.addEventListener('screenChange', () => {
+                setTimeout(() => {
+                    if (menuItems.length > 0) {
+                        state.selectedItem = 0;
+                        updateMenuSelection();
+                    }
+                }, 100);
+            });
+            
+            // Evento de teclado global
+            document.addEventListener('keydown', handleKeyDown);
+            
+            // Disparar evento de mudança de tela inicial
+            const event = new Event('screenChange');
+            document.dispatchEvent(event);
+        });
+        
+        // Função para lidar com o login
+        function handleLogin() {
+            const password = passwordInput.value.trim();
+            
+            if (password.toUpperCase() === state.password) {
+                loginMessage.innerHTML = '<span class="success">ACESSO PERMITIDO. INICIALIZANDO SISTEMA...</span>';
+                setTimeout(() => {
+                    showScreen('desktop2');
+                }, 1500);
+            } else {
+                loginMessage.innerHTML = '<span class="error">ERRO: SENHA INCORRETA. TENTE NOVAMENTE.</span>';
+                passwordInput.value = '';
+            }
+        }
+        
+        // Função para mostrar uma tela específica
+        function showScreen(screenId) {
+            screens.forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+            state.currentScreen = screenId;
+            
+            // Resetar estado quando necessário
+            if (screenId === 'desktop4') {
+                puzzleResult.style.display = 'none';
+                document.getElementById('key-puzzle').style.display = 'none';
+                maze.style.display = 'grid';
+                state.mazeSolved = false;
+                initMazePlayer();
+            }
+            
+            if (screenId === 'desktop5') {
+                fileContent.style.display = 'none';
+            }
+            
+            if (screenId === 'desktop6') {
+                simulationResult.style.display = 'none';
+                document.getElementById('complexity-section').style.display = 'none';
+                state.category = null;
+            }
+            
+            if (screenId === 'desktop7') {
+                // Gerar um código de resultado aleatório
+                document.getElementById('result-code').textContent = 
+                    generateRandomCode() + '-' + generateRandomCode();
+            }
+            
+            // Disparar evento de mudança de tela
+            const event = new Event('screenChange');
+            document.dispatchEvent(event);
+        }
+        
+        // Função para criar o labirinto
+        function createMaze() {
+            // Um labirinto simples 10x10
+            const mazeLayout = [
+                [1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,1,0,0,0,0,1],
+                [1,1,1,0,1,0,1,1,0,1],
+                [1,0,0,0,0,0,1,0,0,1],
+                [1,0,1,1,1,1,1,0,1,1],
+                [1,0,0,0,0,0,0,0,0,1],
+                [1,1,1,1,1,0,1,1,0,1],
+                [1,0,0,0,0,0,1,0,0,1],
+                [1,0,1,1,1,1,1,0,1,1],
+                [1,1,1,1,1,1,1,2,1,1]
+            ];
+            
+            maze.innerHTML = '';
+            
+            for (let row = 0; row < 10; row++) {
+                for (let col = 0; col < 10; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    if (mazeLayout[row][col] === 1) {
+                        // Parede
+                        cell.style.background = '#2a0a45';
+                    } else if (mazeLayout[row][col] === 0) {
+                        // Caminho
+                        cell.classList.add('path');
+                    } else if (mazeLayout[row][col] === 2) {
+                        // Saída
+                        cell.classList.add('end');
+                    }
+                    
+                    if (row === 1 && col === 1) {
+                        // Início
+                        cell.classList.add('start');
+                    }
+                    
+                    maze.appendChild(cell);
+                }
+            }
+        }
+        
+        // Inicializar o jogador no labirinto
+        function initMazePlayer() {
+            const startCell = document.querySelector('.cell.start');
+            startCell.classList.add('player');
+            state.playerPos = { row: 1, col: 1 };
+        }
+        
+        // Mover o jogador no labirinto
+        function movePlayer(direction) {
+            const { row, col } = state.playerPos;
+            let newRow = row;
+            let newCol = col;
+            
+            switch(direction) {
+                case 'up': newRow--; break;
+                case 'down': newRow++; break;
+                case 'left': newCol--; break;
+                case 'right': newCol++; break;
+            }
+            
+            // Verificar se o movimento é válido
+            const newCell = document.querySelector(`.cell[data-row="${newRow}"][data-col="${newCol}"]`);
+            if (newCell && !newCell.style.background) {
+                // Remover jogador da célula atual
+                document.querySelector('.cell.player').classList.remove('player');
+                
+                // Adicionar jogador à nova célula
+                newCell.classList.add('player');
+                state.playerPos = { row: newRow, col: newCol };
+                
+                // Verificar se chegou ao fim
+                if (newCell.classList.contains('end')) {
+                    state.mazeSolved = true;
+                    maze.style.display = 'none';
+                    puzzleResult.style.display = 'block';
+                    document.getElementById('puzzle-code').textContent = generateRandomCode();
+                }
+            }
+        }
+        
+        // Criar grid de teclas
+        function createKeyGrid() {
+            const keys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Shift', 'Ctrl', 'Alt'];
+            
+            keyGrid.innerHTML = '';
+            
+            // Adicionar teclas ao grid
+            keys.forEach(key => {
+                const keyBtn = document.createElement('div');
+                keyBtn.className = 'key-btn';
+                keyBtn.textContent = key;
+                keyBtn.dataset.key = key;
+                
+                keyBtn.addEventListener('click', () => {
+                    keyBtn.classList.toggle('active');
+                    
+                    if (keyBtn.classList.contains('active')) {
+                        if (!state.pressedKeys.includes(key)) {
+                            state.pressedKeys.push(key);
+                        }
+                    } else {
+                        state.pressedKeys = state.pressedKeys.filter(k => k !== key);
+                    }
+                    
+                    checkKeyCombination();
+                });
+                
+                keyGrid.appendChild(keyBtn);
+            });
+        }
+        
+        // Verificar combinação de teclas
+        function checkKeyCombination() {
+            // Ordenar para comparar independente da ordem
+            const pressedSorted = [...state.pressedKeys].sort();
+            const comboSorted = [...state.keyCombination].sort();
+            
+            // Verificar se as arrays são iguais
+            const isMatch = pressedSorted.length === comboSorted.length && 
+                pressedSorted.every((value, index) => value === comboSorted[index]);
+            
+            if (isMatch) {
+                keyResult.innerHTML = '<span class="success">COMBINAÇÃO CORRETA!</span>';
+                setTimeout(() => {
+                    puzzleResult.style.display = 'block';
+                    document.getElementById('puzzle-code').textContent = generateRandomCode();
+                }, 1000);
+            }
+        }
+        
+        // Executar simulação técnica
+        function runTechSimulation() {
+            simulationResult.style.display = 'block';
+            document.getElementById('verification-code').textContent = generateRandomCode();
+            
+            // Simular processamento
+            const resultText = `
+Simulação ${state.category} - Nível ${state.complexity}
+-----------------------------------
+Iniciando processo de compilação...
+Carregando módulos especializados...
+Executando algoritmo de predição...
+Otimizando parâmetros...
+Análise de resultados concluída.
+
+Status: Sucesso
+Eficiência: ${85 + state.complexity}%
+Tempo de execução: ${(1.5 - state.complexity/20).toFixed(2)}s
+            `;
+            
+            document.getElementById('simulation-result').querySelector('.output').textContent = resultText;
+        }
+        
+        // Gerar código aleatório (formato XXXX-XXXX)
+        function generateRandomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            
+            for (let i = 0; i < 4; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            
+            return code;
+        }
+        
+        // Atualizar seleção no menu
+        function updateMenuSelection() {
+            const currentMenu = document.querySelector(`#${state.currentScreen} .menu`);
+            if (!currentMenu) return;
+            
+            const items = currentMenu.querySelectorAll('.menu-item');
+            items.forEach((item, index) => {
+                if (index === state.selectedItem) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+        
+        // Lidar com eventos de teclado
+        function handleKeyDown(e) {
+            // Ignorar eventos quando em campos de entrada
+            if (e.target.tagName === 'INPUT') return;
+            
+            const currentMenu = document.querySelector(`#${state.currentScreen} .menu`);
+            const items = currentMenu ? currentMenu.querySelectorAll('.menu-item') : [];
+            
+            switch(e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (items.length > 0) {
+                        state.selectedItem = (state.selectedItem - 1 + items.length) % items.length;
+                        updateMenuSelection();
+                    } else if (state.currentScreen === 'desktop4' && !state.mazeSolved) {
+                        movePlayer('up');
+                    }
+                    break;
+                    
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (items.length > 0) {
+                        state.selectedItem = (state.selectedItem + 1) % items.length;
+                        updateMenuSelection();
+                    } else if (state.currentScreen === 'desktop4' && !state.mazeSolved) {
+                        movePlayer('down');
+                    }
+                    break;
+                    
+                case 'ArrowLeft':
+                    if (state.currentScreen === 'desktop4' && !state.mazeSolved) {
+                        e.preventDefault();
+                        movePlayer('left');
+                    }
+                    break;
+                    
+                case 'ArrowRight':
+                    if (state.currentScreen === 'desktop4' && !state.mazeSolved) {
+                        e.preventDefault();
+                        movePlayer('right');
+                    }
+                    break;
+                    
+                case 'Enter':
+                    e.preventDefault();
+                    if (state.currentScreen === 'desktop1') {
+                        handleLogin();
+                    } else if (items.length > 0) {
+                        const selectedItem = items[state.selectedItem];
+                        const targetScreen = selectedItem.dataset.target;
+                        const category = selectedItem.dataset.category;
+                        
+                        if (targetScreen) {
+                            if (targetScreen === 'desktop4') {
+                                // Alternar entre os tipos de puzzle
+                                if (Math.random() > 0.5) {
+                                    maze.style.display = 'grid';
+                                    document.getElementById('key-puzzle').style.display = 'none';
+                                    initMazePlayer();
+                                } else {
+                                    maze.style.display = 'none';
+                                    document.getElementById('key-puzzle').style.display = 'block';
+                                    state.pressedKeys = [];
+                                    document.querySelectorAll('.key-btn').forEach(btn => {
+                                        btn.classList.remove('active');
+                                    });
+                                    keyResult.textContent = '';
+                                    
+                                    // Gerar nova combinação de teclas
+                                    const keys = ['Shift', 'Ctrl', 'Alt', 'A', 'K', '7', '9', 'X', 'F'];
+                                    const combo = [];
+                                    for (let i = 0; i < 3; i++) {
+                                        const randomKey = keys[Math.floor(Math.random() * keys.length)];
+                                        if (!combo.includes(randomKey)) {
+                                            combo.push(randomKey);
+                                        }
+                                    }
+                                    state.keyCombination = combo;
+                                    keyCombination.textContent = `Pressione: ${combo.join(' + ')}`;
+                                }
+                            }
+                            
+                            if (targetScreen === 'desktop7' && state.currentScreen === 'desktop5') {
+                                fileContent.style.display = 'block';
+                            }
+                            
+                            if (targetScreen === 'desktop6') {
+                                state.category = category;
+                                document.getElementById('complexity-section').style.display = 'block';
+                            }
+                            
+                            showScreen(targetScreen);
+                        }
+                    } else if (state.currentScreen === 'desktop7') {
+                        // Reiniciar o sistema
+                        showScreen('desktop1');
+                        passwordInput.value = '';
+                        loginMessage.textContent = '';
+                    } else if (state.currentScreen === 'desktop5' && fileContent.style.display === 'block') {
+                        // Voltar do conteúdo do arquivo
+                        fileContent.style.display = 'none';
+                    } else if (state.currentScreen === 'desktop4' && puzzleResult.style.display === 'block') {
+                        // Ir para a próxima tela após resolver o puzzle
+                        showScreen('desktop7');
+                    } else if (state.currentScreen === 'desktop6' && simulationResult.style.display === 'block') {
+                        // Ir para a próxima tela após simulação
+                        showScreen('desktop7');
+                    }
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>
